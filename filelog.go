@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 	"strings"
+	"bufio"
 )
 
 // This log writer sends output to a file
@@ -155,7 +156,9 @@ func (w *FileLogWriter) intRotate() error {
 			w.daily_opendate = modifiedtime.Day()
 			num := 1
 			fname := ""
-			if w.daily && time.Now().Day() != w.daily_opendate {
+			if (w.daily && time.Now().Day() != w.daily_opendate) ||
+				(w.maxlines > 0 && w.maxlines_curlines >= w.maxlines) ||
+				(w.maxsize > 0 && w.maxsize_cursize >= w.maxsize) {
 				modifieddate := modifiedtime.Format("2006-01-02")
 				// for ; err == nil && num <= w.maxbackup; num++ {
 				// 	fname = w.filename + fmt.Sprintf(".%s.%03d", yesterday, num)
@@ -164,7 +167,8 @@ func (w *FileLogWriter) intRotate() error {
 				// if err == nil {
 				// 	return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
 				// }
-				fname = w.filename + fmt.Sprintf(".%s", modifieddate)
+				hour, minite,second := modifiedtime.Clock()
+				fname = w.filename + fmt.Sprintf(".%s.%d%d%d", modifieddate, hour, minite, second)
 				w.file.Close()
 				// Rename the file to its newfound home
 				err = os.Rename(w.filename, fname)
@@ -209,8 +213,31 @@ func (w *FileLogWriter) intRotate() error {
 	// initialize rotation values
 	w.maxlines_curlines = 0
 	w.maxsize_cursize = 0
+	fileinfo, errs := os.Lstat(w.filename)
+	if errs == nil {
+		filesize := fileinfo.Size()
+		w.maxsize_cursize = (int)(filesize)
+		w.maxlines_curlines = fileline(w.filename)
+	}
 
 	return nil
+}
+
+func fileline(path string) int {
+	file, err := os.Open(path)
+	count := 0
+	if err != nil {
+		return count
+	}
+	defer file.Close()
+	buffer := bufio.NewReader(file)
+	for {
+		_, _, errs := buffer.ReadLine()
+		if errs != nil {
+			return count
+		}
+		count++
+	}
 }
 
 // Set the logging format (chainable).  Must be called before the first log
