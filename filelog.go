@@ -168,7 +168,7 @@ func (w *FileLogWriter) intRotate() error {
 				// 	return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
 				// }
 				hour, minite,second := modifiedtime.Clock()
-				fname = w.filename + fmt.Sprintf(".%s.%d%d%d", modifieddate, hour, minite, second)
+				fname = w.filename + fmt.Sprintf(".%s.%02d%02d%02d", modifieddate, hour, minite, second)
 				w.file.Close()
 				// Rename the file to its newfound home
 				err = os.Rename(w.filename, fname)
